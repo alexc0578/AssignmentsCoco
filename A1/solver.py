@@ -1,4 +1,5 @@
 import math
+from platform import node
 import random
 from collections import deque, defaultdict
 import heapq
@@ -174,6 +175,44 @@ def astar(start_node, goal_node):
       4. Expand the node with the smallest f_score, update neighbors if a better path is found.
     """
     # TODO: Implement A*
+    openList = [start_node] # Nodes to be evaluated
+    closedList = [] # Nodes already evaluated
+
+    g_score = {start_node: 0}
+    h_score = {start_node: manhattan_distance(start_node, goal_node)}
+    f_score = {start_node: g_score[start_node] + h_score[start_node]}
+    start_node.parent = None
+
+    while openList:
+        # Want node with lowest f(n) = g(n) + h(n) -- Priority Queue
+        current = min(openList, key=lambda node: f_score.get(node, float('inf')))
+
+        if current == goal_node:
+            return reconstruct_path(current, {node: node.parent for node in closedList + [current]})
+
+        # Remove current node from open to closed list
+        openList.remove(current)
+        closedList.append(current)
+
+        # Check neighboring nodes
+        for neighbor in current.neighbors:
+            if neighbor in closedList:
+                continue
+
+            tentative_g_score = g_score[current] + 1 # Assuming cost/distance between nodes is 1
+
+            if neighbor not in openList:
+                openList.append(neighbor)
+            elif tentative_g_score >= g_score.get(neighbor, float('inf')):
+                continue # Means this path is not better
+
+            # Record best path so far
+            neighbor.parent = current
+            g_score[neighbor] = tentative_g_score
+            h_score[neighbor] = manhattan_distance(neighbor, goal_node)
+            f_score[neighbor] = g_score[neighbor] + h_score[neighbor]
+
+    return None  # No path found
 
 def manhattan_distance(node_a, node_b):
     """
@@ -181,8 +220,13 @@ def manhattan_distance(node_a, node_b):
     if they are (row, col) pairs.
     """
     # TODO: Return |r1 - r2| + |c1 - c2|
-    return 0
+    node_a = node_a.value
+    node_b = node_b.value
 
+    r1, c1 = node_a
+    r2, c2 = node_b
+
+    return abs(r1 - r2) + abs(c1 - c2)
 
 ###############################################################################
 #                 Bidirectional Search (Graph-based)                          #
@@ -199,7 +243,41 @@ def bidirectional_search(start_node, goal_node):
       3. If the frontiers intersect, reconstruct the path by combining partial paths.
     """
     # TODO: Implement bidirectional search
-    return None
+    # Two simultaneous BFS
+    start_queue = deque([start_node]) # From start node
+    end_queue = deque([goal_node])  # From goal node
+
+    start_visited = {start_node: None}
+    end_visited = {goal_node: None}
+
+    while start_queue and end_queue:
+        # BFS from start
+        if start_queue:
+            current_start = start_queue.popleft() # FIFO
+            if current_start in end_visited:
+                # Path found, success
+                return reconstruct_path(current_start, start_visited) + reconstruct_path(current_start, end_visited)[::-1][1:]
+
+            # Explore neighbors for start path
+            for neighbor in current_start.neighbors:
+                if neighbor not in start_visited:
+                    start_visited[neighbor] = current_start
+                    start_queue.append(neighbor)
+
+        # BFS from goal
+        if end_queue:
+            current_end = end_queue.popleft() # FIFO
+            if current_end in start_visited:
+                # Path found, success
+                return reconstruct_path(current_end, start_visited) + reconstruct_path(current_end, end_visited)[::-1][1:]
+
+            # Explore neighbors for end path
+            for neighbor in current_end.neighbors:
+                if neighbor not in end_visited:
+                    end_visited[neighbor] = current_end
+                    end_queue.append(neighbor)
+
+    return None  # No path found
 
 
 ###############################################################################
@@ -276,8 +354,16 @@ if __name__ == "__main__":
     path_bfs = bfs(start_node, goal_node)
     print("BFS Path:", path_bfs)
 
-    # Similarly test DFS, A*, etc.
+    # DFS
     path_dfs = dfs(start_node, goal_node)
     print("DFS Path:", path_dfs)
-    # path_astar = astar(start_node, goal_node)
-    # ...
+
+    # A*
+    path_astar = astar(start_node, goal_node)
+    print("A* Path:", path_astar)
+    
+    # Bidirectional
+    path_bidirectional = bidirectional_search(start_node, goal_node)
+    print("Bidirectional Path:", path_bidirectional)
+
+    print(f"Manhattan Distance: {manhattan_distance(start_node, goal_node)}")
