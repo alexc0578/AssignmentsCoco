@@ -27,8 +27,11 @@ class Node:
          - node includes self in node.neighbors (undirected)
         """
         # TODO: Implement adding a neighbor in an undirected manner
-        pass
-
+        if node not in self.neighbors: 
+            self.neighbors.append(node) # Add node to self's neighbor list
+        if self not in node.neighbors:
+            node.neighbors.append(self) # Add self to node's neighbor list
+        
     def __repr__(self):
         return f"Node({self.value})"
     
@@ -62,7 +65,26 @@ def parse_maze_to_graph(maze):
     start_node = None
     goal_node = None
 
+    # 1)
+    for r in range(rows):
+            for c in range(cols):
+                if maze[r][c] == 0:  # Open cell
+                    nodes_dict[(r, c)] = Node((r, c))
+
+    # 2)
+    for (r,c), node in nodes_dict.items():
+            for dir_r, dir_c in [(-1,0), (1,0), (0,-1), (0,1)]:
+                neighbor_r, neighbor_c = r + dir_r, c + dir_c
+                if (neighbor_r, neighbor_c) in nodes_dict:
+                    neighbor_node = nodes_dict[(neighbor_r, neighbor_c)]
+                    node.add_neighbor(neighbor_node)
+
+    # 3)
     # TODO: Assign start_node and goal_node if they exist in nodes_dict
+    if (0,0) in nodes_dict:
+        start_node = nodes_dict[(0,0)]
+    if (rows-1, cols-1) in nodes_dict:
+        goal_node = nodes_dict[(rows-1, cols-1)]
 
     return nodes_dict, start_node, goal_node
 
@@ -78,11 +100,27 @@ def bfs(start_node, goal_node):
 
     Steps (suggested):
       1. Use a queue (collections.deque) to hold nodes to explore.
-      2. Track visited nodes so you don’t revisit.
+      2. Track visited nodes so you don't revisit.
       3. Also track parent_map to reconstruct the path once goal_node is reached.
     """
     # TODO: Implement BFS
-    return None
+    queue = deque([start_node]) # FIFO
+    visited = set([start_node])
+    parent_map = {start_node: None}
+
+    while queue:
+        current_node = queue.popleft() # Get first node in queue
+
+        if current_node == goal_node:
+            return reconstruct_path(current_node, parent_map)
+
+        for neighbor in current_node.neighbors:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                parent_map[neighbor] = current_node
+                queue.append(neighbor)
+
+    return None  # No path found
 
 
 ###############################################################################
@@ -100,7 +138,23 @@ def dfs(start_node, goal_node):
       3. Reconstruct path via parent_map if goal_node is found.
     """
     # TODO: Implement DFS
-    return None
+    queue = [start_node] # LIFO
+    visited = set([start_node])
+    parent_map = {start_node: None}
+
+    while queue:
+        current_node = queue.pop() # Get last node in stack
+
+        if current_node == goal_node:
+            return reconstruct_path(current_node, parent_map)
+
+        for neighbor in current_node.neighbors:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                parent_map[neighbor] = current_node
+                queue.append(neighbor)
+
+    return None  # No path found
 
 
 ###############################################################################
@@ -120,7 +174,6 @@ def astar(start_node, goal_node):
       4. Expand the node with the smallest f_score, update neighbors if a better path is found.
     """
     # TODO: Implement A*
-    return None
 
 def manhattan_distance(node_a, node_b):
     """
@@ -186,7 +239,15 @@ def reconstruct_path(end_node, parent_map):
       2. Collect node.value, reverse the list, return it.
     """
     # TODO: Implement path reconstruction
-    return None
+    path = []
+    current_node = end_node
+
+    while current_node is not None:
+        path.append(current_node.value)
+        current_node = parent_map.get(current_node)
+
+    path.reverse()  # Reverse to get path from start to end
+    return path
 
 
 ###############################################################################
@@ -216,6 +277,7 @@ if __name__ == "__main__":
     print("BFS Path:", path_bfs)
 
     # Similarly test DFS, A*, etc.
-    # path_dfs = dfs(start_node, goal_node)
+    path_dfs = dfs(start_node, goal_node)
+    print("DFS Path:", path_dfs)
     # path_astar = astar(start_node, goal_node)
     # ...
