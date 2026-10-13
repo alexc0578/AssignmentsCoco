@@ -298,9 +298,34 @@ def simulated_annealing(start_node, goal_node, temperature=1.0, cooling_rate=0.9
       4. Decrease temperature each step by cooling_rate until below min_temperature or we reach goal_node.
     """
     # TODO: Implement simulated annealing
-    return None
+    current_node = start_node
+    compute_cost = manhattan_distance(current_node, goal_node)
+    
+    path = [current_node.value]
+    
+    while temperature > min_temperature:
+        # Path found, success
+        if current_node == goal_node:
+            return path
 
+        neighbors = current_node.neighbors
+        if not neighbors:
+            break  # No more moves possible
 
+        next_node = random.choice(neighbors)
+        next_cost = manhattan_distance(next_node, goal_node)
+        cost_diff = next_cost - compute_cost
+
+        # If next cost is lower, move. Otherwise move with probability e^(-cost_diff / temperature)
+        if next_cost < compute_cost or random.random() < math.exp(-cost_diff / temperature):
+            current_node = next_node
+            compute_cost = next_cost
+            path.append(current_node.value)
+
+        temperature *= cooling_rate 
+
+    return None  #No path found
+    
 ###############################################################################
 #                           Helper: Reconstruct Path                           #
 ###############################################################################
@@ -366,4 +391,6 @@ if __name__ == "__main__":
     path_bidirectional = bidirectional_search(start_node, goal_node)
     print("Bidirectional Path:", path_bidirectional)
 
-    print(f"Manhattan Distance: {manhattan_distance(start_node, goal_node)}")
+    # Simulated Annealing
+    path_annealing = simulated_annealing(start_node, goal_node)
+    print("Simulated Annealing Path:", path_annealing)
