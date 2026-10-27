@@ -1,6 +1,9 @@
 import math
 import random
 import numpy as np
+from scipy.signal import convolve2d
+import copy
+
 
 # Board dimensions for Connect Four
 ROW_COUNT = 6
@@ -9,13 +12,13 @@ COLUMN_COUNT = 7
 def create_board():
     """
     Creates an empty Connect Four board (numpy 2D array).
-
+ 
     Returns:
     np.ndarray:
         A 2D numpy array of shape (ROW_COUNT, COLUMN_COUNT) filled with zeros (float).
     """
-    # TODO: implement
-    pass
+    board = np.zeros((ROW_COUNT, COLUMN_COUNT), dtype=float)
+    return board
 
 
 def drop_piece(board, row, col, piece):
@@ -31,11 +34,10 @@ def drop_piece(board, row, col, piece):
     Returns:
     None. The 'board' is modified in-place. Do NOT return a new board!
     """
-    # TODO: implement
-    pass
+    board[row, col] = piece
 
 
-def is_valid_location(board, col):
+def is_valid_location(board: np.ndarray, col: int):
     """
     Checks if dropping a piece in 'col' is valid (column not full).
 
@@ -46,8 +48,7 @@ def is_valid_location(board, col):
     Returns:
     bool: True if it's valid to drop a piece in this column, False otherwise.
     """
-    # TODO: implement
-    pass
+    return board[ROW_COUNT - 1, col] == 0
 
 
 def get_next_open_row(board, col):
@@ -61,11 +62,12 @@ def get_next_open_row(board, col):
     Returns:
     int: The row index of the lowest empty cell in this column.
     """
-    # TODO: implement
-    pass
+    for row in range(board.shape[0]):
+        if board[row][col] == 0:
+            return row
+    return None # if column is completely full
 
-
-def winning_move(board, piece):
+def winning_move(board, piece: int):
     """
     Checks if the board state is a winning state for the given piece.
 
@@ -77,8 +79,17 @@ def winning_move(board, piece):
     bool: True if 'piece' has a winning 4 in a row, False otherwise.
     This requires checking horizontally, vertically, and diagonally.
     """
-    # TODO: implement
-    pass
+    # Use mask w kernels to check horizontal, vertical, and diagonal connections
+    mask = (board == piece)
+
+    kernels = [
+        np.ones((1,4)),
+        np.ones((4,1)),
+        np.eye(4),
+        np.fliplr(np.eye(4))
+    ]
+
+    return any (np.any(convolve2d(mask, k, mode='valid') == 4) for k in kernels)
 
 
 def get_valid_locations(board):
@@ -91,8 +102,12 @@ def get_valid_locations(board):
     Returns:
     list of int: The list of column indices that are not full.
     """
-    # TODO: implement
-    pass
+
+    valid_locations = []
+    for col in range(board.shape[1]):
+        if board[ROW_COUNT - 1][col] == 0:
+            valid_locations.append(col)
+    return valid_locations
 
 
 def is_terminal_node(board):
@@ -107,9 +122,13 @@ def is_terminal_node(board):
     Returns:
     bool: True if the game is over, False otherwise.
     """
-    # TODO: implement
-    pass
-
+    win_1 = winning_move(board, 1)
+    win_2 = winning_move(board, 2)
+    no_valid_moves = get_valid_locations(board)
+    if win_1 or win_2 or not no_valid_moves:
+        return True
+    
+    return False
 
 def score_position(board, piece):
     """
@@ -151,9 +170,67 @@ def minimax(board, depth, alpha, beta, maximizingPlayer):
           column: The chosen column index (None if no moves).
           score: The heuristic score of the board state.
     """
-    # TODO: implement
-    pass
 
+    # Used Medium's "Connect Four" article by Simon Quellen Field for help with this function
+    valid_locations = get_valid_locations(board)
+    is_terminal = is_terminal_node(board)
+
+    if depth == 0 or is_terminal:
+        if is_terminal:
+            if winning_move(board, 1): # player win
+                return (None, -1000000)
+            elif winning_move(board, 2): # AI win
+                return (None, 1000000)
+            else: # no more valid moves
+                return (None, 0) 
+        else: # depth 0
+            return (None, score_position(board, 2))
+
+    if maximizingPlayer: # MAX turn (2)
+        best_score = -float("inf")
+        best_col = valid_locations[0]
+
+        for col in valid_locations:
+            b_copy = copy.deepcopy(board)
+            row = get_next_open_row(b_copy, col)
+            if row is None:
+                continue
+            drop_piece(b_copy, row, col, 2)
+
+            score = minimax(b_copy, depth - 1, alpha, beta, False)[1]
+
+            if score > best_score:
+                best_score = score
+                best_col = col
+
+            alpha = max(alpha, best_score)
+            if alpha >= beta:
+                break
+
+        return (best_col, best_score)
+        
+    else: # MIN tyrn (1)
+        best_score = float("inf")
+        best_col = valid_locations[0]
+
+        for col in valid_locations:
+            b_copy = copy.deepcopy(board)
+            row = get_next_open_row(b_copy, col)
+            if row is None:
+                continue
+            drop_piece(b_copy, row, col, 1)
+
+            score = minimax(b_copy, depth - 1, alpha, beta, True)[1]
+
+            if score < best_score:
+                best_score = score
+                best_col = col
+
+            beta = min(beta, best_score)
+            if alpha >= beta:
+                break
+
+        return (best_col, best_score)
 
 if __name__ == "__main__":
     # Simple debug scenario
@@ -163,6 +240,24 @@ if __name__ == "__main__":
     print(example_board)
 
     # TODO: Students can test their own logic here once implemented, e.g.:
-    # drop_piece(example_board, some_row, some_col, 1)
-    # col, score = minimax(example_board, depth=4, alpha=-math.inf, beta=math.inf, maximizingPlayer=True)
-    # print("Chosen column:", col, "Score:", score)
+    # drop_piece(example_board, 2, 3, 1)
+    # print("Debug: Drop piece 1 in board\n")
+    # print(example_board)
+
+    # drop_piece(example_board, 5, 4, 2)
+    # print("Debug: Drop piece 2 in board\n")
+    # print(example_board)
+
+    drop_piece(example_board, 5, 3, 1)
+    
+    print("Debug: Drop piece 4 pieces in a row in board\n")
+    print(example_board)
+
+    print(f"winning move: {winning_move(example_board, 2)}")
+    print(get_valid_locations(example_board))
+    print(f"terminal node: {is_terminal_node(example_board)}")
+    print(f"score position 1: {score_position(example_board, 1)}")
+    print(f"score position 2: {score_position(example_board, 2)}")
+    
+    col, score = minimax(example_board, depth=4, alpha=-math.inf, beta=math.inf, maximizingPlayer=True)
+    print("Chosen column:", col, "Score:", score)
